@@ -159,7 +159,7 @@ function! viclaude#select_entry() abort
   let l:rendered = s:render_session(l:file)
   call setline(1, l:rendered)
 
-  setlocal filetype=markdown
+  setlocal filetype=viclaude_discussion
   setlocal nomodifiable
   " Go to top
   normal! gg
