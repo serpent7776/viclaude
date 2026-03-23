@@ -9,4 +9,8 @@ unlet! b:current_syntax
 syntax match viclaudeBlockquote /^>.*$/ contains=@Spell
 highlight viclaudeBlockquote ctermbg=236 guibg=#303030
 
+" Thinking lines (extended thinking output)
+syntax match viclaudeThinking /^\~.*$/ contains=@Spell
+highlight viclaudeThinking ctermfg=243 guifg=#767676
+
 let b:current_syntax = 'viclaude_discussion'

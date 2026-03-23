@@ -165,9 +165,30 @@ function! viclaude#select_entry() abort
   call setline(1, l:rendered)
 
   setlocal filetype=viclaude_discussion
+  setlocal foldmethod=expr
+  setlocal foldexpr=s:thinking_foldexpr(v:lnum)
+  setlocal foldtext=s:thinking_foldtext()
+  setlocal foldlevel=0
   setlocal nomodifiable
   " Go to top
   normal! gg
+endfunction
+
+function! s:thinking_foldexpr(lnum) abort
+  let l:line = getline(a:lnum)
+  if l:line =~# '^\~ '
+    return 1
+  endif
+  " Blank line right after a thinking block belongs to the fold
+  if a:lnum > 1 && l:line ==# '' && getline(a:lnum - 1) =~# '^\~ '
+    return 1
+  endif
+  return 0
+endfunction
+
+function! s:thinking_foldtext() abort
+  let l:count = v:foldend - v:foldstart
+  return '~ [Thinking] (' . l:count . ' lines) '
 endfunction
 
 function! s:render_session(file) abort
@@ -312,12 +333,16 @@ function! s:render_assistant_content(content, output) abort
 
     let l:btype = get(l:block, 'type', '')
 
-    " Skip thinking blocks entirely
     if l:btype ==# 'thinking'
-      continue
-    endif
+      let l:thinking = get(l:block, 'thinking', '')
+      if !empty(l:thinking)
+        for l:line in split(l:thinking, '\n')
+          call add(a:output, '~ ' . l:line)
+        endfor
+        call add(a:output, '')
+      endif
 
-    if l:btype ==# 'text'
+    elseif l:btype ==# 'text'
       call extend(a:output, split(get(l:block, 'text', ''), '\n'))
 
     elseif l:btype ==# 'tool_use'
