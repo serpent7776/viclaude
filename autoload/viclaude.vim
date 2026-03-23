@@ -147,9 +147,14 @@ function! viclaude#select_entry() abort
   " Extract UUID from filename for buffer name
   let l:uuid = fnamemodify(l:file, ':t:r')
 
-  " Go to previous window (code window), then create a horizontal split
+  " Go to previous window (code window)
   wincmd p
-  new
+  " Reuse the window if its buffer is empty and unmodified; otherwise split
+  if line('$') == 1 && getline(1) ==# '' && !&modified && bufname('%') ==# ''
+    enew
+  else
+    new
+  endif
 
   " Set scratch buffer options
   setlocal buftype=nofile bufhidden=wipe noswapfile
