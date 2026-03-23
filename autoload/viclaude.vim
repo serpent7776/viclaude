@@ -117,6 +117,11 @@ function! s:extract_session_info(file) abort
 
     " Skip trivial/noise messages
     if empty(l:text) || l:text =~# '^\s*$'
+          \ || l:text =~# '^\[Request interrupted'
+          \ || l:text =~# '^Caveat: The messages below'
+          \ || l:text =~# '^Exit code \d'
+          \ || l:text =~# '^/clear\>'
+          \ || l:text =~# '^Implement the following plan:'
       continue
     endif
 
