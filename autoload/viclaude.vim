@@ -43,7 +43,6 @@ function! viclaude#history() abort
   for l:entry in l:entries
     call add(s:session_files, l:entry.file)
     call add(l:qflist, {
-          \ 'filename': l:entry.file,
           \ 'text': '[' . l:entry.display_time . '] ' . l:entry.summary,
           \ })
   endfor
