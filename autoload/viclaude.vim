@@ -54,7 +54,9 @@ function! viclaude#history() abort
 endfunction
 
 function! s:extract_session_info(file) abort
-  let l:lines = readfile(a:file, '', 30)
+  let l:lines = readfile(a:file, '', 50)
+  let l:timestamp = ''
+
   for l:line in l:lines
     try
       let l:obj = json_decode(l:line)
@@ -85,6 +87,11 @@ function! s:extract_session_info(file) abort
       continue
     endif
 
+    " Capture timestamp from the first user message
+    if empty(l:timestamp)
+      let l:timestamp = get(l:obj, 'timestamp', '')
+    endif
+
     let l:content = get(l:msg, 'content', '')
     let l:text = ''
 
@@ -104,8 +111,14 @@ function! s:extract_session_info(file) abort
       continue
     endif
 
-    " Extract timestamp
-    let l:timestamp = get(l:obj, 'timestamp', '')
+    " Strip XML tags (local-command-caveat, command-name, etc.)
+    let l:text = substitute(l:text, '<[^>]\+>', '', 'g')
+    let l:text = substitute(l:text, '^\s*\n\?', '', '')
+
+    " Skip trivial/noise messages
+    if empty(l:text) || l:text =~# '^\s*$'
+      continue
+    endif
 
     " Format timestamp: 2026-03-23T11:43:36.354Z → 2026-03-23 11:43
     let l:display_time = l:timestamp
