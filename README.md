@@ -12,6 +12,8 @@ Open Vim in a project directory where you've used Claude Code, then run:
 
 This opens a quickfix list of sessions for the current project, sorted by most recent. Press `<Enter>` on an entry to view the rendered conversation.
 
+![Preview](files/viclaude2.png)
+
 ## Install
 
 With a plugin manager (e.g. vim-plug):
