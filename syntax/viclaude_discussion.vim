@@ -7,7 +7,7 @@ unlet! b:current_syntax
 
 " Blockquote lines (user messages) with distinct background
 syntax match viclaudeBlockquote /^>.*$/ contains=@Spell
-highlight viclaudeBlockquote ctermbg=236 guibg=#303030
+highlight viclaudeBlockquote ctermfg=cyan ctermbg=236 guifg=#00ffff guibg=#303030
 
 " Thinking lines (extended thinking output)
 syntax match viclaudeThinking /^\~.*$/ contains=@Spell
