@@ -5,7 +5,7 @@ let s:session_files = []
 function! viclaude#history() abort
   let l:cwd = getcwd()
   " Claude Code uses leading dash + slashes replaced with dashes
-  let l:project_name = substitute(l:cwd, '/', '-', 'g')
+  let l:project_name = substitute(substitute(l:cwd, '/', '-', 'g'), '\.', '-', 'g')
   let l:project_dir = expand('~/.claude/projects/' . l:project_name)
 
   if !isdirectory(l:project_dir)
