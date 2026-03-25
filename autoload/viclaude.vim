@@ -334,6 +334,7 @@ function! s:render_user_content(content, output, blockquote) abort
         else
           call extend(a:output, l:result_lines)
         endif
+        call add(a:output, '')
       endif
     endif
   endfor
@@ -362,6 +363,7 @@ function! s:render_assistant_content(content, output) abort
 
     elseif l:btype ==# 'text'
       call extend(a:output, split(get(l:block, 'text', ''), '\n'))
+      call add(a:output, '')
 
     elseif l:btype ==# 'tool_use'
       let l:name = get(l:block, 'name', '?')
@@ -372,6 +374,7 @@ function! s:render_assistant_content(content, output) abort
       else
         call add(a:output, '`[Tool: ' . l:name . ']`')
       endif
+      call add(a:output, '')
     endif
   endfor
 endfunction
