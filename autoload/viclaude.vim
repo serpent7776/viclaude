@@ -328,8 +328,9 @@ function! s:render_user_content(content, output, blockquote) abort
       if !empty(l:result_text)
         let l:result_lines = split(l:result_text, '\n')
         if len(l:result_lines) > 5
-          call extend(a:output, l:result_lines[0:4])
-          call add(a:output, '... (' . len(l:result_lines) . ' lines total)')
+          let l:tmpfile = tempname()
+          call writefile(l:result_lines, l:tmpfile)
+          call add(a:output, '... (' . len(l:result_lines) . ' lines) ' . l:tmpfile)
         else
           call extend(a:output, l:result_lines)
         endif
