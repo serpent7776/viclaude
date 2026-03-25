@@ -9,6 +9,10 @@ unlet! b:current_syntax
 syntax match viclaudeBlockquote /^>.*$/ contains=@Spell
 highlight viclaudeBlockquote ctermfg=cyan ctermbg=236 guifg=#00ffff guibg=#303030
 
+" Noise lines (local command artifacts, system reminders)
+syntax match viclaudeNoise /^<.*$/ contains=@Spell
+highlight viclaudeNoise ctermfg=243 guifg=#767676
+
 " Thinking lines (extended thinking output)
 syntax match viclaudeThinking /^\~.*$/ contains=@Spell
 highlight viclaudeThinking ctermfg=243 guifg=#767676

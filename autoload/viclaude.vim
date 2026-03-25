@@ -53,6 +53,45 @@ function! viclaude#history() abort
   nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
 endfunction
 
+function! s:extract_user_text(content) abort
+  if type(a:content) == v:t_string
+    return a:content
+  endif
+  if type(a:content) == v:t_list
+    for l:block in a:content
+      if type(l:block) == v:t_dict && get(l:block, 'type', '') ==# 'text'
+        return get(l:block, 'text', '')
+      endif
+    endfor
+  endif
+  return ''
+endfunction
+
+function! s:clean_user_text(text) abort
+  let l:text = a:text
+  " Remove known noise XML elements (tag + content)
+  let l:text = substitute(l:text, '<local-command-caveat>\_.\{-}<\/local-command-caveat>', '', 'g')
+  let l:text = substitute(l:text, '<command-name>\_.\{-}<\/command-name>', '', 'g')
+  let l:text = substitute(l:text, '<command-message>\_.\{-}<\/command-message>', '', 'g')
+  let l:text = substitute(l:text, '<command-args>\_.\{-}<\/command-args>', '', 'g')
+  let l:text = substitute(l:text, '<local-command-stdout>\_.\{-}<\/local-command-stdout>', '', 'g')
+  let l:text = substitute(l:text, '<system-reminder>\_.\{-}<\/system-reminder>', '', 'g')
+  " Strip any remaining XML tags
+  let l:text = substitute(l:text, '<[^>]\+>', '', 'g')
+  " Trim leading whitespace and blank lines
+  let l:text = substitute(l:text, '^\_s*', '', '')
+  return l:text
+endfunction
+
+function! s:is_noise_message(text) abort
+  return empty(a:text) || a:text =~# '^\s*$'
+        \ || a:text =~# '^\[Request interrupted'
+        \ || a:text =~# '^Caveat: The messages below'
+        \ || a:text =~# '^Exit code \d'
+        \ || a:text =~# '^/clear\>'
+        \ || a:text =~# '^Implement the following plan:'
+endfunction
+
 function! s:extract_session_info(file) abort
   let l:lines = readfile(a:file, '', 50)
   let l:timestamp = ''
@@ -92,36 +131,9 @@ function! s:extract_session_info(file) abort
       let l:timestamp = get(l:obj, 'timestamp', '')
     endif
 
-    let l:content = get(l:msg, 'content', '')
-    let l:text = ''
+    let l:text = s:clean_user_text(s:extract_user_text(get(l:msg, 'content', '')))
 
-    if type(l:content) == v:t_string
-      let l:text = l:content
-    elseif type(l:content) == v:t_list
-      " Find first text block
-      for l:block in l:content
-        if type(l:block) == v:t_dict && get(l:block, 'type', '') ==# 'text'
-          let l:text = get(l:block, 'text', '')
-          break
-        endif
-      endfor
-    endif
-
-    if empty(l:text)
-      continue
-    endif
-
-    " Strip XML tags (local-command-caveat, command-name, etc.)
-    let l:text = substitute(l:text, '<[^>]\+>', '', 'g')
-    let l:text = substitute(l:text, '^\s*\n\?', '', '')
-
-    " Skip trivial/noise messages
-    if empty(l:text) || l:text =~# '^\s*$'
-          \ || l:text =~# '^\[Request interrupted'
-          \ || l:text =~# '^Caveat: The messages below'
-          \ || l:text =~# '^Exit code \d'
-          \ || l:text =~# '^/clear\>'
-          \ || l:text =~# '^Implement the following plan:'
+    if s:is_noise_message(l:text)
       continue
     endif
 
@@ -193,11 +205,11 @@ endfunction
 
 function! s:thinking_foldexpr(lnum) abort
   let l:line = getline(a:lnum)
-  if l:line =~# '^\~ '
+  if l:line =~# '^\~ ' || l:line =~# '^< '
     return 1
   endif
-  " Blank line right after a thinking block belongs to the fold
-  if a:lnum > 1 && l:line ==# '' && getline(a:lnum - 1) =~# '^\~ '
+  " Blank line right after a foldable block belongs to the fold
+  if a:lnum > 1 && l:line ==# '' && (getline(a:lnum - 1) =~# '^\~ ' || getline(a:lnum - 1) =~# '^< ')
     return 1
   endif
   return 0
@@ -205,6 +217,9 @@ endfunction
 
 function! s:thinking_foldtext() abort
   let l:count = v:foldend - v:foldstart
+  if getline(v:foldstart) =~# '^< '
+    return '< [Noise] (' . l:count . ' lines) '
+  endif
   return '~ [Thinking] (' . l:count . ' lines) '
 endfunction
 
@@ -258,7 +273,9 @@ function! s:render_session(file) abort
         endfor
       endif
 
-      if l:has_text
+      let l:is_noise = l:has_text &&
+            \ s:is_noise_message(s:clean_user_text(s:extract_user_text(l:content)))
+      if l:has_text && !l:is_noise
         if !empty(l:output)
           call add(l:output, '')
           call add(l:output, '---')
@@ -266,7 +283,7 @@ function! s:render_session(file) abort
         call add(l:output, '')
       endif
       call s:render_user_content(l:content, l:output, l:has_text)
-      if l:has_text
+      if l:has_text && !l:is_noise
         call add(l:output, '')
         let l:last_assistant_id = ''
       endif
@@ -286,11 +303,21 @@ endfunction
 
 function! s:render_user_content(content, output, blockquote) abort
   if type(a:content) == v:t_string
-    let l:lines = split(a:content, '\n')
     if a:blockquote
-      call map(l:lines, {_, v -> '> ' . v})
+      let l:clean = s:clean_user_text(a:content)
+      if a:content !=# l:clean
+        let l:raw_lines = split(a:content, '\n')
+        call map(l:raw_lines, {_, v -> '< ' . v})
+        call extend(a:output, l:raw_lines)
+      endif
+      if !empty(l:clean)
+        let l:lines = split(l:clean, '\n')
+        call map(l:lines, {_, v -> '> ' . v})
+        call extend(a:output, l:lines)
+      endif
+    else
+      call extend(a:output, split(a:content, '\n'))
     endif
-    call extend(a:output, l:lines)
     return
   endif
 
@@ -306,11 +333,22 @@ function! s:render_user_content(content, output, blockquote) abort
     let l:btype = get(l:block, 'type', '')
 
     if l:btype ==# 'text'
-      let l:lines = split(get(l:block, 'text', ''), '\n')
+      let l:raw = get(l:block, 'text', '')
       if a:blockquote
-        call map(l:lines, {_, v -> '> ' . v})
+        let l:clean = s:clean_user_text(l:raw)
+        if l:raw !=# l:clean
+          let l:raw_lines = split(l:raw, '\n')
+          call map(l:raw_lines, {_, v -> '< ' . v})
+          call extend(a:output, l:raw_lines)
+        endif
+        if !empty(l:clean)
+          let l:lines = split(l:clean, '\n')
+          call map(l:lines, {_, v -> '> ' . v})
+          call extend(a:output, l:lines)
+        endif
+      else
+        call extend(a:output, split(l:raw, '\n'))
       endif
-      call extend(a:output, l:lines)
 
     elseif l:btype ==# 'tool_result'
       let l:result_content = get(l:block, 'content', '')
