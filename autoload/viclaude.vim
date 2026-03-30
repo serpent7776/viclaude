@@ -406,11 +406,23 @@ function! s:render_assistant_content(content, output) abort
     elseif l:btype ==# 'tool_use'
       let l:name = get(l:block, 'name', '?')
       let l:input = get(l:block, 'input', {})
-      let l:context = s:tool_context(l:name, l:input)
-      if !empty(l:context)
-        call add(a:output, '`[Tool: ' . l:name . ']` ' . l:context)
+      if l:name ==# 'Bash'
+        let l:cmd = get(l:input, 'command', '')
+        if !empty(l:cmd)
+          call add(a:output, '`[Tool: Bash]`')
+          for l:line in split(l:cmd, '\n')
+            call add(a:output, '$ ' . l:line)
+          endfor
+        else
+          call add(a:output, '`[Tool: Bash]`')
+        endif
       else
-        call add(a:output, '`[Tool: ' . l:name . ']`')
+        let l:context = s:tool_context(l:name, l:input)
+        if !empty(l:context)
+          call add(a:output, '`[Tool: ' . l:name . ']` ' . l:context)
+        else
+          call add(a:output, '`[Tool: ' . l:name . ']`')
+        endif
       endif
       call add(a:output, '')
     endif
@@ -422,18 +434,7 @@ function! s:tool_context(name, input) abort
     return ''
   endif
 
-  if a:name ==# 'Bash'
-    let l:cmd = get(a:input, 'command', '')
-    if !empty(l:cmd)
-      " Show first line of command, truncated
-      let l:first = split(l:cmd, '\n')[0]
-      if len(l:first) > 100
-        let l:first = l:first[0:99] . '...'
-      endif
-      return '`$ ' . l:first . '`'
-    endif
-
-  elseif a:name ==# 'Read' || a:name ==# 'Write' || a:name ==# 'Edit'
+  if a:name ==# 'Read' || a:name ==# 'Write' || a:name ==# 'Edit'
     let l:path = get(a:input, 'file_path', '')
     if !empty(l:path)
       return '`' . l:path . '`'
