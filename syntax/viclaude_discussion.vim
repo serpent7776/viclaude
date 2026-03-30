@@ -2,6 +2,7 @@ if exists('b:current_syntax')
   finish
 endif
 
+let g:markdown_fenced_languages = ['sh', 'bash', 'python']
 runtime! syntax/markdown.vim
 unlet! b:current_syntax
 
