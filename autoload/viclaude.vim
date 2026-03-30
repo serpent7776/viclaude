@@ -409,10 +409,16 @@ function! s:render_assistant_content(content, output) abort
       if l:name ==# 'Bash'
         let l:cmd = get(l:input, 'command', '')
         if !empty(l:cmd)
-          call add(a:output, '`[Tool: Bash]`')
-          for l:line in split(l:cmd, '\n')
-            call add(a:output, '$ ' . l:line)
-          endfor
+          let l:cmd_lines = split(l:cmd, '\n')
+          if len(l:cmd_lines) == 1
+            call add(a:output, '`[Tool: Bash]`')
+            call add(a:output, '`' . l:cmd_lines[0] . '`')
+          else
+            call add(a:output, '`[Tool: Bash]`')
+            call add(a:output, '```')
+            call extend(a:output, l:cmd_lines)
+            call add(a:output, '```')
+          endif
         else
           call add(a:output, '`[Tool: Bash]`')
         endif
