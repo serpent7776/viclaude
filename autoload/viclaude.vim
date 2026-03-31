@@ -385,7 +385,9 @@ function! s:render_user_content(content, output, blockquote) abort
           call writefile(l:result_lines, l:tmpfile)
           call add(a:output, '... (' . len(l:result_lines) . ' lines) ' . l:tmpfile)
         else
+          call add(a:output, '```')
           call extend(a:output, l:result_lines)
+          call add(a:output, '```')
         endif
         call add(a:output, '')
       endif
