@@ -199,8 +199,23 @@ function! viclaude#select_entry() abort
   setlocal foldtext=s:thinking_foldtext()
   setlocal foldlevel=0
   setlocal nomodifiable
+
+  " Section navigation: jump between user prompts
+  nnoremap <buffer> <silent> ]] :<C-u>call <SID>jump_prompt(1)<CR>
+  nnoremap <buffer> <silent> [[ :<C-u>call <SID>jump_prompt(0)<CR>
+
   " Go to top
   normal! gg
+endfunction
+
+function! s:jump_prompt(forward) abort
+  let l:flags = a:forward ? 'W' : 'bW'
+  while search('^> ', l:flags) > 0
+    let l:lnum = line('.')
+    if l:lnum == 1 || getline(l:lnum - 1) !~# '^> '
+      return
+    endif
+  endwhile
 endfunction
 
 function! s:thinking_foldexpr(lnum) abort
