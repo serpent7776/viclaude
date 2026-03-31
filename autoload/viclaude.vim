@@ -433,6 +433,45 @@ function! s:render_assistant_content(content, output) abort
         else
           call add(a:output, '`[Tool: Bash]`')
         endif
+      elseif l:name ==# 'Write'
+        let l:path = get(l:input, 'file_path', '')
+        let l:wcontent = get(l:input, 'content', '')
+        call add(a:output, '`[Tool: Write]` `' . l:path . '`')
+        if !empty(l:wcontent)
+          let l:wlines = split(l:wcontent, '\n')
+          if len(l:wlines) > 5
+            let l:tmpfile = tempname()
+            call writefile(l:wlines, l:tmpfile)
+            call add(a:output, '... (' . len(l:wlines) . ' lines) ' . l:tmpfile)
+          else
+            call add(a:output, '```')
+            call extend(a:output, l:wlines)
+            call add(a:output, '```')
+          endif
+        endif
+      elseif l:name ==# 'Edit'
+        let l:path = get(l:input, 'file_path', '')
+        let l:old = get(l:input, 'old_string', '')
+        let l:new = get(l:input, 'new_string', '')
+        call add(a:output, '`[Tool: Edit]` `' . l:path . '`')
+        if !empty(l:old) || !empty(l:new)
+          let l:diff_lines = []
+          for l:dl in split(l:old, '\n')
+            call add(l:diff_lines, '- ' . l:dl)
+          endfor
+          for l:dl in split(l:new, '\n')
+            call add(l:diff_lines, '+ ' . l:dl)
+          endfor
+          if len(l:diff_lines) > 10
+            let l:tmpfile = tempname()
+            call writefile(l:diff_lines, l:tmpfile)
+            call add(a:output, '... (' . len(l:diff_lines) . ' lines) ' . l:tmpfile)
+          else
+            call add(a:output, '```diff')
+            call extend(a:output, l:diff_lines)
+            call add(a:output, '```')
+          endif
+        endif
       else
         let l:context = s:tool_context(l:name, l:input)
         if !empty(l:context)
@@ -451,7 +490,7 @@ function! s:tool_context(name, input) abort
     return ''
   endif
 
-  if a:name ==# 'Read' || a:name ==# 'Write' || a:name ==# 'Edit'
+  if a:name ==# 'Read'
     let l:path = get(a:input, 'file_path', '')
     if !empty(l:path)
       return '`' . l:path . '`'
