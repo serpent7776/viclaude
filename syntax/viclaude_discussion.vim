@@ -6,10 +6,10 @@ let g:markdown_fenced_languages = ['sh', 'bash', 'python']
 runtime! syntax/markdown.vim
 unlet! b:current_syntax
 
-" Fix: markdown's BoldItalic rules misparse **_foo** as start of bold-italic
-" region that never closes, causing highlight bleed. Clear and suppress them.
-silent! syntax clear markdownBoldItalic
-silent! syntax clear markdownBoldUnderlineItalic
+" Claude Code doesn't use italic; the _ delimiters in markdownItalic cause
+" bleed on snake_case identifiers inside bold (e.g. **_count_active()**).
+syntax clear markdownItalic
+syntax clear markdownBoldItalic
 
 " Blockquote lines (user messages) with distinct background
 syntax match viclaudeBlockquote /^>.*$/ contains=@Spell
