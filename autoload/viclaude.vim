@@ -1,8 +1,10 @@
 " autoload/viclaude.vim - Claude Code conversation history browser
 
 let s:session_files = []
+let s:grep_pattern = ''
 
 function! viclaude#history() abort
+  let s:grep_pattern = ''
   let l:cwd = getcwd()
   " Claude Code uses leading dash + slashes replaced with dashes
   let l:project_name = substitute(substitute(l:cwd, '/', '-', 'g'), '\.', '-', 'g')
@@ -204,8 +206,13 @@ function! viclaude#select_entry() abort
   nnoremap <buffer> <silent> ]] :<C-u>call <SID>jump_prompt(1)<CR>
   nnoremap <buffer> <silent> [[ :<C-u>call <SID>jump_prompt(0)<CR>
 
-  " Go to top
+  " Go to top, then jump to grep match if applicable
   normal! gg
+  if !empty(s:grep_pattern)
+    let @/ = s:grep_pattern
+    set hlsearch
+    silent! normal! n
+  endif
 endfunction
 
 function! s:jump_prompt(forward) abort
@@ -515,5 +522,164 @@ function! s:tool_context(name, input) abort
     endif
   endif
 
+  return ''
+endfunction
+
+function! viclaude#grep(pattern) abort
+  if empty(a:pattern)
+    echohl WarningMsg | echo 'Usage: :ClaudeGrep <pattern>' | echohl None
+    return
+  endif
+
+  let l:cwd = getcwd()
+  let l:project_name = substitute(substitute(l:cwd, '/', '-', 'g'), '\.', '-', 'g')
+  let l:project_dir = expand('~/.claude/projects/' . l:project_name)
+
+  if !isdirectory(l:project_dir)
+    echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
+    return
+  endif
+
+  let l:files = glob(l:project_dir . '/*.jsonl', 0, 1)
+  if empty(l:files)
+    echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
+    return
+  endif
+
+  let l:results = []
+  for l:file in l:files
+    if !filereadable(l:file)
+      continue
+    endif
+    let l:match = s:grep_session(l:file, a:pattern)
+    if !empty(l:match)
+      call add(l:results, l:match)
+    endif
+  endfor
+
+  if empty(l:results)
+    echohl WarningMsg | echo 'No matches found for: ' . a:pattern | echohl None
+    return
+  endif
+
+  " Sort by timestamp descending (most recent first)
+  call sort(l:results, {a, b -> a.timestamp ==# b.timestamp ? 0 : a.timestamp ># b.timestamp ? -1 : 1})
+
+  let s:session_files = []
+  let s:grep_pattern = a:pattern
+  let l:qflist = []
+  for l:r in l:results
+    call add(s:session_files, l:r.file)
+    let l:count_str = l:r.count == 1 ? '1 match' : l:r.count . ' matches'
+    call add(l:qflist, {
+          \ 'text': '[' . l:r.display_time . '] (' . l:count_str . ') ' . l:r.excerpt,
+          \ })
+  endfor
+
+  call setqflist(l:qflist)
+  copen
+  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
+endfunction
+
+function! s:grep_session(file, pattern) abort
+  let l:raw_lines = readfile(a:file)
+
+  " Quick check: skip files that don't contain the pattern at all
+  let l:raw_match = v:false
+  for l:rl in l:raw_lines
+    if l:rl =~? a:pattern
+      let l:raw_match = v:true
+      break
+    endif
+  endfor
+  if !l:raw_match
+    return {}
+  endif
+
+  let l:timestamp = ''
+  let l:display_time = ''
+  let l:count = 0
+  let l:first_excerpt = ''
+
+  for l:raw in l:raw_lines
+    try
+      let l:obj = json_decode(l:raw)
+    catch
+      continue
+    endtry
+
+    if type(l:obj) != v:t_dict
+      continue
+    endif
+
+    if get(l:obj, 'isSidechain', v:false)
+      continue
+    endif
+
+    let l:msg = get(l:obj, 'message', {})
+    if empty(l:msg) || type(l:msg) != v:t_dict
+      continue
+    endif
+
+    let l:role = get(l:msg, 'role', '')
+    if l:role !=# 'user' && l:role !=# 'assistant'
+      continue
+    endif
+
+    " Capture timestamp from first message
+    if empty(l:timestamp)
+      let l:timestamp = get(l:obj, 'timestamp', '')
+      let l:display_time = l:timestamp
+      if len(l:timestamp) >= 16
+        let l:display_time = l:timestamp[0:9] . ' ' . l:timestamp[11:15]
+      endif
+    endif
+
+    let l:content = get(l:msg, 'content', '')
+    let l:text = s:extract_searchable_text(l:content)
+
+    if l:text =~? a:pattern
+      let l:count += 1
+      if empty(l:first_excerpt)
+        for l:tline in split(l:text, '\n')
+          if l:tline =~? a:pattern
+            let l:first_excerpt = l:tline
+            break
+          endif
+        endfor
+      endif
+    endif
+  endfor
+
+  if l:count == 0
+    return {}
+  endif
+
+  if len(l:first_excerpt) > 120
+    let l:first_excerpt = l:first_excerpt[0:119] . '...'
+  endif
+
+  return {
+        \ 'file': a:file,
+        \ 'timestamp': l:timestamp,
+        \ 'display_time': l:display_time,
+        \ 'count': l:count,
+        \ 'excerpt': l:first_excerpt,
+        \ }
+endfunction
+
+function! s:extract_searchable_text(content) abort
+  if type(a:content) == v:t_string
+    return a:content
+  endif
+  if type(a:content) == v:t_list
+    let l:texts = []
+    for l:block in a:content
+      if type(l:block) == v:t_dict && get(l:block, 'type', '') ==# 'text'
+        call add(l:texts, get(l:block, 'text', ''))
+      endif
+    endfor
+    return join(l:texts, "\n")
+  endif
   return ''
 endfunction
