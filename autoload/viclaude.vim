@@ -9,6 +9,10 @@ function! s:project_dir(cwd) abort
   return expand('~/.claude/projects/' . l:project_name)
 endfunction
 
+function! s:list_sessions(project_dir) abort
+  return glob(a:project_dir . '/*.jsonl', 0, 1)
+endfunction
+
 function! viclaude#history() abort
   let s:grep_pattern = ''
   let l:project_dir = s:project_dir(getcwd())
@@ -18,7 +22,7 @@ function! viclaude#history() abort
     return
   endif
 
-  let l:files = glob(l:project_dir . '/*.jsonl', 0, 1)
+  let l:files = s:list_sessions(l:project_dir)
   if empty(l:files)
     echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
     return
@@ -541,7 +545,7 @@ function! viclaude#grep(pattern) abort
     return
   endif
 
-  let l:files = glob(l:project_dir . '/*.jsonl', 0, 1)
+  let l:files = s:list_sessions(l:project_dir)
   if empty(l:files)
     echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
     return
