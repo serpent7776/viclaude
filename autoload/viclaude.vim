@@ -58,7 +58,7 @@ function! viclaude#history() abort
   let s:session_files = []
   let l:qflist = []
   for l:entry in l:entries
-    call add(s:session_files, l:entry.file)
+    call add(s:session_files, {'file': l:entry.file, 'match_idx': 0})
     call add(l:qflist, {
           \ 'text': '[' . l:entry.display_time . '] ' . l:entry.summary,
           \ })
@@ -181,7 +181,9 @@ function! viclaude#select_entry() abort
     return
   endif
 
-  let l:file = s:session_files[l:idx]
+  let l:entry = s:session_files[l:idx]
+  let l:file = l:entry.file
+  let l:match_idx = l:entry.match_idx
   if !filereadable(l:file)
     echohl ErrorMsg | echo 'Session file not readable: ' . l:file | echohl None
     return
@@ -218,12 +220,15 @@ function! viclaude#select_entry() abort
   nnoremap <buffer> <silent> ]] :<C-u>call <SID>jump_prompt(1)<CR>
   nnoremap <buffer> <silent> [[ :<C-u>call <SID>jump_prompt(0)<CR>
 
-  " Go to top, then jump to grep match if applicable
+  " Go to top, then jump to the requested grep match if applicable
   normal! gg
   if !empty(s:grep_pattern)
     let @/ = s:grep_pattern
     set hlsearch
-    silent! normal! n
+    let l:jumps = l:match_idx > 0 ? l:match_idx : 1
+    for l:i in range(l:jumps)
+      silent! normal! n
+    endfor
   endif
 endfunction
 
@@ -568,11 +573,14 @@ function! viclaude#grep(pattern) abort
   let s:grep_pattern = a:pattern
   let l:qflist = []
   for l:r in l:results
-    call add(s:session_files, l:r.file)
-    let l:count_str = l:r.count == 1 ? '1 match' : l:r.count . ' matches'
-    call add(l:qflist, {
-          \ 'text': '[' . l:r.display_time . '] (' . l:count_str . ') ' . l:r.excerpt,
-          \ })
+    let l:idx = 0
+    for l:excerpt in l:r.excerpts
+      let l:idx += 1
+      call add(s:session_files, {'file': l:r.file, 'match_idx': l:idx})
+      call add(l:qflist, {
+            \ 'text': '[' . l:r.display_time . '] ' . l:excerpt,
+            \ })
+    endfor
   endfor
 
   call s:open_qflist(l:qflist)
@@ -595,8 +603,7 @@ function! s:grep_session(file, pattern) abort
 
   let l:timestamp = ''
   let l:display_time = ''
-  let l:count = 0
-  let l:first_excerpt = ''
+  let l:excerpts = []
 
   for l:raw in l:raw_lines
     try
@@ -635,33 +642,26 @@ function! s:grep_session(file, pattern) abort
     let l:content = get(l:msg, 'content', '')
     let l:text = s:extract_searchable_text(l:content)
 
-    if l:text =~? a:pattern
-      let l:count += 1
-      if empty(l:first_excerpt)
-        for l:tline in split(l:text, '\n')
-          if l:tline =~? a:pattern
-            let l:first_excerpt = l:tline
-            break
-          endif
-        endfor
+    for l:tline in split(l:text, '\n')
+      if l:tline =~? a:pattern
+        let l:excerpt = l:tline
+        if len(l:excerpt) > 120
+          let l:excerpt = l:excerpt[0:119] . '...'
+        endif
+        call add(l:excerpts, l:excerpt)
       endif
-    endif
+    endfor
   endfor
 
-  if l:count == 0
+  if empty(l:excerpts)
     return {}
-  endif
-
-  if len(l:first_excerpt) > 120
-    let l:first_excerpt = l:first_excerpt[0:119] . '...'
   endif
 
   return {
         \ 'file': a:file,
         \ 'timestamp': l:timestamp,
         \ 'display_time': l:display_time,
-        \ 'count': l:count,
-        \ 'excerpt': l:first_excerpt,
+        \ 'excerpts': l:excerpts,
         \ }
 endfunction
 
