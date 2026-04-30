@@ -10,7 +10,7 @@ function! s:project_dir(cwd) abort
 endfunction
 
 function! s:list_sessions(project_dir) abort
-  return glob(a:project_dir . '/*.jsonl', 0, 1)
+  return filter(glob(a:project_dir . '/*.jsonl', 0, 1), 'filereadable(v:val)')
 endfunction
 
 function! s:get_session_files() abort
@@ -41,9 +41,6 @@ function! viclaude#history() abort
 
   let l:entries = []
   for l:file in l:files
-    if !filereadable(l:file)
-      continue
-    endif
     let l:info = s:extract_session_info(l:file)
     if !empty(l:info)
       call add(l:entries, l:info)
@@ -553,9 +550,6 @@ function! viclaude#grep(pattern) abort
 
   let l:results = []
   for l:file in l:files
-    if !filereadable(l:file)
-      continue
-    endif
     let l:match = s:grep_session(l:file, a:pattern)
     if !empty(l:match)
       call add(l:results, l:match)
