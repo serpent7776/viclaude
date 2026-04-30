@@ -644,11 +644,7 @@ function! s:grep_session(file, pattern) abort
 
     for l:tline in split(l:text, '\n')
       if l:tline =~? a:pattern
-        let l:excerpt = l:tline
-        if len(l:excerpt) > 120
-          let l:excerpt = l:excerpt[0:119] . '...'
-        endif
-        call add(l:excerpts, l:excerpt)
+        call add(l:excerpts, s:trim_excerpt(l:tline, a:pattern, 120))
       endif
     endfor
   endfor
@@ -663,6 +659,37 @@ function! s:grep_session(file, pattern) abort
         \ 'display_time': l:display_time,
         \ 'excerpts': l:excerpts,
         \ }
+endfunction
+
+function! s:trim_excerpt(line, pattern, max_len) abort
+  if len(a:line) <= a:max_len
+    return a:line
+  endif
+  let l:pos = match(a:line, '\c' . a:pattern)
+  if l:pos < 0
+    return a:line[0 : a:max_len - 1] . '...'
+  endif
+  let l:context_before = 30
+  let l:start = l:pos - l:context_before
+  if l:start < 0
+    let l:start = 0
+  endif
+  let l:end = l:start + a:max_len
+  if l:end > len(a:line)
+    let l:end = len(a:line)
+    let l:start = l:end - a:max_len
+    if l:start < 0
+      let l:start = 0
+    endif
+  endif
+  let l:excerpt = a:line[l:start : l:end - 1]
+  if l:start > 0
+    let l:excerpt = '...' . l:excerpt
+  endif
+  if l:end < len(a:line)
+    let l:excerpt = l:excerpt . '...'
+  endif
+  return l:excerpt
 endfunction
 
 function! s:extract_searchable_text(content) abort
