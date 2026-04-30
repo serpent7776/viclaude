@@ -8,11 +8,15 @@ function! s:project_name(cwd) abort
   return substitute(substitute(a:cwd, '/', '-', 'g'), '\.', '-', 'g')
 endfunction
 
+function! s:project_dir(project_name) abort
+  return expand('~/.claude/projects/' . a:project_name)
+endfunction
+
 function! viclaude#history() abort
   let s:grep_pattern = ''
   let l:cwd = getcwd()
   let l:project_name = s:project_name(l:cwd)
-  let l:project_dir = expand('~/.claude/projects/' . l:project_name)
+  let l:project_dir = s:project_dir(l:project_name)
 
   if !isdirectory(l:project_dir)
     echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
@@ -537,7 +541,7 @@ function! viclaude#grep(pattern) abort
 
   let l:cwd = getcwd()
   let l:project_name = s:project_name(l:cwd)
-  let l:project_dir = expand('~/.claude/projects/' . l:project_name)
+  let l:project_dir = s:project_dir(l:project_name)
 
   if !isdirectory(l:project_dir)
     echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
