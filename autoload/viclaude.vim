@@ -26,6 +26,12 @@ function! s:get_session_files() abort
   return l:files
 endfunction
 
+function! s:open_qflist(qflist) abort
+  call setqflist(a:qflist)
+  copen
+  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
+endfunction
+
 function! viclaude#history() abort
   let s:grep_pattern = ''
   let l:files = s:get_session_files()
@@ -61,10 +67,7 @@ function! viclaude#history() abort
           \ })
   endfor
 
-  call setqflist(l:qflist)
-  copen
-  " Buffer-local mapping to open selected session
-  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
+  call s:open_qflist(l:qflist)
 endfunction
 
 function! s:extract_user_text(content) abort
@@ -578,9 +581,7 @@ function! viclaude#grep(pattern) abort
           \ })
   endfor
 
-  call setqflist(l:qflist)
-  copen
-  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
+  call s:open_qflist(l:qflist)
 endfunction
 
 function! s:grep_session(file, pattern) abort
