@@ -3,11 +3,15 @@
 let s:session_files = []
 let s:grep_pattern = ''
 
+" Claude Code uses leading dash + slashes replaced with dashes
+function! s:project_name(cwd) abort
+  return substitute(substitute(a:cwd, '/', '-', 'g'), '\.', '-', 'g')
+endfunction
+
 function! viclaude#history() abort
   let s:grep_pattern = ''
   let l:cwd = getcwd()
-  " Claude Code uses leading dash + slashes replaced with dashes
-  let l:project_name = substitute(substitute(l:cwd, '/', '-', 'g'), '\.', '-', 'g')
+  let l:project_name = s:project_name(l:cwd)
   let l:project_dir = expand('~/.claude/projects/' . l:project_name)
 
   if !isdirectory(l:project_dir)
@@ -532,7 +536,7 @@ function! viclaude#grep(pattern) abort
   endif
 
   let l:cwd = getcwd()
-  let l:project_name = substitute(substitute(l:cwd, '/', '-', 'g'), '\.', '-', 'g')
+  let l:project_name = s:project_name(l:cwd)
   let l:project_dir = expand('~/.claude/projects/' . l:project_name)
 
   if !isdirectory(l:project_dir)
