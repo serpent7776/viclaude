@@ -2,6 +2,14 @@
 
 let s:grep_pattern = ''
 
+function! s:warn(msg) abort
+  echohl WarningMsg | echo a:msg | echohl None
+endfunction
+
+function! s:err(msg) abort
+  echohl ErrorMsg | echo a:msg | echohl None
+endfunction
+
 " Claude Code uses leading dash + slashes replaced with dashes
 function! s:project_dir(cwd) abort
   let l:project_name = substitute(substitute(a:cwd, '/', '-', 'g'), '\.', '-', 'g')
@@ -15,12 +23,12 @@ endfunction
 function! s:get_session_files() abort
   let l:project_dir = s:project_dir(getcwd())
   if !isdirectory(l:project_dir)
-    echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
+    call s:warn('No Claude sessions found for this project.')
     return []
   endif
   let l:files = s:list_sessions(l:project_dir)
   if empty(l:files)
-    echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
+    call s:warn('No Claude sessions found for this project.')
   endif
   return l:files
 endfunction
@@ -47,7 +55,7 @@ function! viclaude#history() abort
   endfor
 
   if empty(l:entries)
-    echohl WarningMsg | echo 'No Claude sessions found for this project.' | echohl None
+    call s:warn('No Claude sessions found for this project.')
     return
   endif
 
@@ -176,20 +184,20 @@ function! viclaude#select_entry() abort
   let l:items = getqflist()
   let l:idx = line('.') - 1
   if l:idx < 0 || l:idx >= len(l:items)
-    echohl ErrorMsg | echo 'Invalid session entry.' | echohl None
+    call s:err('Invalid session entry.')
     return
   endif
 
   let l:data = get(l:items[l:idx], 'user_data', '')
   if type(l:data) != v:t_dict || !has_key(l:data, 'file')
-    echohl ErrorMsg | echo 'Invalid session entry.' | echohl None
+    call s:err('Invalid session entry.')
     return
   endif
 
   let l:file = l:data.file
   let l:match_idx = get(l:data, 'match_idx', 0)
   if !filereadable(l:file)
-    echohl ErrorMsg | echo 'Session file not readable: ' . l:file | echohl None
+    call s:err('Session file not readable: ' . l:file)
     return
   endif
 
@@ -548,7 +556,7 @@ endfunction
 
 function! viclaude#grep(pattern) abort
   if empty(a:pattern)
-    echohl WarningMsg | echo 'Usage: :ClaudeGrep <pattern>' | echohl None
+    call s:warn('Usage: :ClaudeGrep <pattern>')
     return
   endif
 
@@ -566,7 +574,7 @@ function! viclaude#grep(pattern) abort
   endfor
 
   if empty(l:results)
-    echohl WarningMsg | echo 'No matches found for: ' . a:pattern | echohl None
+    call s:warn('No matches found for: ' . a:pattern)
     return
   endif
 
