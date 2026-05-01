@@ -14,10 +14,9 @@ function! s:by_timestamp_desc(a, b) abort
   return a:a.timestamp <# a:b.timestamp ? 1 : a:a.timestamp ># a:b.timestamp ? -1 : 0
 endfunction
 
-" Claude Code uses leading dash + slashes replaced with dashes
+" Claude Code uses leading dash + slashes/dots replaced with dashes
 function! s:project_dir(cwd) abort
-  let l:project_name = substitute(substitute(a:cwd, '/', '-', 'g'), '\.', '-', 'g')
-  return expand('~/.claude/projects/' . l:project_name)
+  return expand('~/.claude/projects/' . substitute(a:cwd, '[/.]', '-', 'g'))
 endfunction
 
 function! s:list_sessions(project_dir) abort
