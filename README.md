@@ -27,13 +27,13 @@ This opens a quickfix list of matching excerpts (one per match) from user and as
 With a plugin manager (e.g. vim-plug):
 
 ```vim
-Plug 'user/viclaude'
+Plug 'Serpent7776/viclaude'
 ```
 
 Or clone into your Vim packages directory:
 
 ```sh
-git clone https://github.com/user/viclaude ~/.vim/pack/plugins/start/viclaude
+git clone https://github.com/Serpent7776/viclaude ~/.vim/pack/plugins/start/viclaude
 ```
 
 ## License
