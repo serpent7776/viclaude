@@ -355,6 +355,19 @@ function! s:render_session(file) abort
   return l:output
 endfunction
 
+" Append a fenced block; spill to tempfile when threshold>0 and exceeded.
+function! s:emit_block(output, lines, fence, threshold) abort
+  if a:threshold > 0 && len(a:lines) > a:threshold
+    let l:tmpfile = tempname()
+    call writefile(a:lines, l:tmpfile)
+    call add(a:output, '... (' . len(a:lines) . ' lines) ' . l:tmpfile)
+  else
+    call add(a:output, '```' . a:fence)
+    call extend(a:output, a:lines)
+    call add(a:output, '```')
+  endif
+endfunction
+
 function! s:render_user_content(content, output, blockquote) abort
   if type(a:content) == v:t_string
     if a:blockquote
@@ -418,16 +431,7 @@ function! s:render_user_content(content, output, blockquote) abort
         endfor
       endif
       if !empty(l:result_text)
-        let l:result_lines = split(l:result_text, '\n')
-        if len(l:result_lines) > 5
-          let l:tmpfile = tempname()
-          call writefile(l:result_lines, l:tmpfile)
-          call add(a:output, '... (' . len(l:result_lines) . ' lines) ' . l:tmpfile)
-        else
-          call add(a:output, '```')
-          call extend(a:output, l:result_lines)
-          call add(a:output, '```')
-        endif
+        call s:emit_block(a:output, split(l:result_text, '\n'), '', 5)
         call add(a:output, '')
       endif
     endif
@@ -464,29 +468,16 @@ function! s:render_assistant_content(content, output) abort
       let l:input = get(l:block, 'input', {})
       if l:name ==# 'Bash'
         let l:cmd = get(l:input, 'command', '')
+        call add(a:output, '`[Tool: Bash]`')
         if !empty(l:cmd)
-          call add(a:output, '`[Tool: Bash]`')
-          call add(a:output, '```bash')
-          call extend(a:output, split(l:cmd, '\n'))
-          call add(a:output, '```')
-        else
-          call add(a:output, '`[Tool: Bash]`')
+          call s:emit_block(a:output, split(l:cmd, '\n'), 'bash', 0)
         endif
       elseif l:name ==# 'Write'
         let l:path = get(l:input, 'file_path', '')
         let l:wcontent = get(l:input, 'content', '')
         call add(a:output, '`[Tool: Write]` `' . l:path . '`')
         if !empty(l:wcontent)
-          let l:wlines = split(l:wcontent, '\n')
-          if len(l:wlines) > 5
-            let l:tmpfile = tempname()
-            call writefile(l:wlines, l:tmpfile)
-            call add(a:output, '... (' . len(l:wlines) . ' lines) ' . l:tmpfile)
-          else
-            call add(a:output, '```')
-            call extend(a:output, l:wlines)
-            call add(a:output, '```')
-          endif
+          call s:emit_block(a:output, split(l:wcontent, '\n'), '', 5)
         endif
       elseif l:name ==# 'Edit'
         let l:path = get(l:input, 'file_path', '')
@@ -501,15 +492,7 @@ function! s:render_assistant_content(content, output) abort
           for l:dl in split(l:new, '\n')
             call add(l:diff_lines, '+ ' . l:dl)
           endfor
-          if len(l:diff_lines) > 10
-            let l:tmpfile = tempname()
-            call writefile(l:diff_lines, l:tmpfile)
-            call add(a:output, '... (' . len(l:diff_lines) . ' lines) ' . l:tmpfile)
-          else
-            call add(a:output, '```diff')
-            call extend(a:output, l:diff_lines)
-            call add(a:output, '```')
-          endif
+          call s:emit_block(a:output, l:diff_lines, 'diff', 10)
         endif
       else
         let l:context = s:tool_context(l:name, l:input)
