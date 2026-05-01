@@ -10,6 +10,10 @@ function! s:err(msg) abort
   echohl ErrorMsg | echo a:msg | echohl None
 endfunction
 
+function! s:by_timestamp_desc(a, b) abort
+  return a:a.timestamp <# a:b.timestamp ? 1 : a:a.timestamp ># a:b.timestamp ? -1 : 0
+endfunction
+
 " Claude Code uses leading dash + slashes replaced with dashes
 function! s:project_dir(cwd) abort
   let l:project_name = substitute(substitute(a:cwd, '/', '-', 'g'), '\.', '-', 'g')
@@ -60,7 +64,7 @@ function! viclaude#history() abort
   endif
 
   " Sort by timestamp descending (most recent first)
-  call sort(l:entries, {a, b -> a.timestamp ==# b.timestamp ? 0 : a.timestamp ># b.timestamp ? -1 : 1})
+  call sort(l:entries, function('s:by_timestamp_desc'))
 
   let l:qflist = []
   for l:entry in l:entries
@@ -579,7 +583,7 @@ function! viclaude#grep(pattern) abort
   endif
 
   " Sort by timestamp descending (most recent first)
-  call sort(l:results, {a, b -> a.timestamp ==# b.timestamp ? 0 : a.timestamp ># b.timestamp ? -1 : 1})
+  call sort(l:results, function('s:by_timestamp_desc'))
 
   let s:grep_pattern = a:pattern
   let l:qflist = []
