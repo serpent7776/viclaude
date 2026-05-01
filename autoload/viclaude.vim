@@ -91,15 +91,15 @@ function! s:extract_user_text(content) abort
   return ''
 endfunction
 
+let s:noise_tags = ['local-command-caveat', 'command-name', 'command-message',
+      \ 'command-args', 'local-command-stdout', 'system-reminder']
+
 function! s:clean_user_text(text) abort
   let l:text = a:text
   " Remove known noise XML elements (tag + content)
-  let l:text = substitute(l:text, '<local-command-caveat>\_.\{-}<\/local-command-caveat>', '', 'g')
-  let l:text = substitute(l:text, '<command-name>\_.\{-}<\/command-name>', '', 'g')
-  let l:text = substitute(l:text, '<command-message>\_.\{-}<\/command-message>', '', 'g')
-  let l:text = substitute(l:text, '<command-args>\_.\{-}<\/command-args>', '', 'g')
-  let l:text = substitute(l:text, '<local-command-stdout>\_.\{-}<\/local-command-stdout>', '', 'g')
-  let l:text = substitute(l:text, '<system-reminder>\_.\{-}<\/system-reminder>', '', 'g')
+  for l:tag in s:noise_tags
+    let l:text = substitute(l:text, '<' . l:tag . '>\_.\{-}<\/' . l:tag . '>', '', 'g')
+  endfor
   " Strip any remaining XML tags
   let l:text = substitute(l:text, '<[^>]\+>', '', 'g')
   " Trim leading whitespace and blank lines
