@@ -662,31 +662,33 @@ function! s:grep_session(file, pattern) abort
 endfunction
 
 function! s:trim_excerpt(line, pattern, max_len) abort
-  if len(a:line) <= a:max_len
+  let l:total = strchars(a:line)
+  if l:total <= a:max_len
     return a:line
   endif
-  let l:pos = match(a:line, '\c' . a:pattern)
-  if l:pos < 0
-    return a:line[0 : a:max_len - 1] . '...'
+  let l:bpos = match(a:line, '\c' . a:pattern)
+  if l:bpos < 0
+    return strcharpart(a:line, 0, a:max_len) . '...'
   endif
+  let l:pos = strchars(strpart(a:line, 0, l:bpos))
   let l:context_before = 30
   let l:start = l:pos - l:context_before
   if l:start < 0
     let l:start = 0
   endif
   let l:end = l:start + a:max_len
-  if l:end > len(a:line)
-    let l:end = len(a:line)
+  if l:end > l:total
+    let l:end = l:total
     let l:start = l:end - a:max_len
     if l:start < 0
       let l:start = 0
     endif
   endif
-  let l:excerpt = a:line[l:start : l:end - 1]
+  let l:excerpt = strcharpart(a:line, l:start, l:end - l:start)
   if l:start > 0
     let l:excerpt = '...' . l:excerpt
   endif
-  if l:end < len(a:line)
+  if l:end < l:total
     let l:excerpt = l:excerpt . '...'
   endif
   return l:excerpt
