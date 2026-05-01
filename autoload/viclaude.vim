@@ -238,7 +238,7 @@ function! viclaude#select_entry() abort
   " Go to top, then jump to the requested grep match if applicable
   normal! gg
   if !empty(s:grep_pattern)
-    let @/ = s:grep_pattern
+    let @/ = '\c' . s:grep_pattern
     set hlsearch
     let l:jumps = l:match_idx > 0 ? l:match_idx : 1
     for l:i in range(l:jumps)
