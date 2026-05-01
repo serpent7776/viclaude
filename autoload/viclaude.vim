@@ -1,6 +1,5 @@
 " autoload/viclaude.vim - Claude Code conversation history browser
 
-let s:session_files = []
 let s:grep_pattern = ''
 
 " Claude Code uses leading dash + slashes replaced with dashes
@@ -55,12 +54,11 @@ function! viclaude#history() abort
   " Sort by timestamp descending (most recent first)
   call sort(l:entries, {a, b -> a.timestamp ==# b.timestamp ? 0 : a.timestamp ># b.timestamp ? -1 : 1})
 
-  let s:session_files = []
   let l:qflist = []
   for l:entry in l:entries
-    call add(s:session_files, {'file': l:entry.file, 'match_idx': 0})
     call add(l:qflist, {
           \ 'text': '[' . l:entry.display_time . '] ' . l:entry.summary,
+          \ 'user_data': {'file': l:entry.file, 'match_idx': 0},
           \ })
   endfor
 
@@ -175,15 +173,21 @@ function! s:extract_session_info(file) abort
 endfunction
 
 function! viclaude#select_entry() abort
+  let l:items = getqflist()
   let l:idx = line('.') - 1
-  if l:idx < 0 || l:idx >= len(s:session_files)
+  if l:idx < 0 || l:idx >= len(l:items)
     echohl ErrorMsg | echo 'Invalid session entry.' | echohl None
     return
   endif
 
-  let l:entry = s:session_files[l:idx]
-  let l:file = l:entry.file
-  let l:match_idx = l:entry.match_idx
+  let l:data = get(l:items[l:idx], 'user_data', '')
+  if type(l:data) != v:t_dict || !has_key(l:data, 'file')
+    echohl ErrorMsg | echo 'Invalid session entry.' | echohl None
+    return
+  endif
+
+  let l:file = l:data.file
+  let l:match_idx = get(l:data, 'match_idx', 0)
   if !filereadable(l:file)
     echohl ErrorMsg | echo 'Session file not readable: ' . l:file | echohl None
     return
@@ -569,16 +573,15 @@ function! viclaude#grep(pattern) abort
   " Sort by timestamp descending (most recent first)
   call sort(l:results, {a, b -> a.timestamp ==# b.timestamp ? 0 : a.timestamp ># b.timestamp ? -1 : 1})
 
-  let s:session_files = []
   let s:grep_pattern = a:pattern
   let l:qflist = []
   for l:r in l:results
     let l:idx = 0
     for l:excerpt in l:r.excerpts
       let l:idx += 1
-      call add(s:session_files, {'file': l:r.file, 'match_idx': l:idx})
       call add(l:qflist, {
             \ 'text': '[' . l:r.display_time . '] ' . l:excerpt,
+            \ 'user_data': {'file': l:r.file, 'match_idx': l:idx},
             \ })
     endfor
   endfor
