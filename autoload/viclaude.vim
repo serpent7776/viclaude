@@ -211,8 +211,8 @@ function! viclaude#select_entry() abort
 
   setlocal filetype=viclaude_discussion
   setlocal foldmethod=expr
-  setlocal foldexpr=s:thinking_foldexpr(v:lnum)
-  setlocal foldtext=s:thinking_foldtext()
+  execute 'setlocal foldexpr=<SID>thinking_foldexpr(v:lnum)'
+  execute 'setlocal foldtext=<SID>thinking_foldtext()'
   setlocal foldlevel=0
   setlocal nomodifiable
 
