@@ -19,12 +19,21 @@ function! s:project_dir(cwd) abort
   return expand('~/.claude/projects/' . substitute(a:cwd, '[/.]', '-', 'g'))
 endfunction
 
+" Resolve the git repo root for cwd; fall back to cwd if not a repo.
+function! s:repo_root(cwd) abort
+  let l:out = systemlist('git -C ' . shellescape(a:cwd) . ' rev-parse --show-toplevel')
+  if v:shell_error == 0 && !empty(l:out)
+    return l:out[0]
+  endif
+  return a:cwd
+endfunction
+
 function! s:list_sessions(project_dir) abort
   return filter(glob(a:project_dir . '/*.jsonl', 0, 1), 'filereadable(v:val)')
 endfunction
 
 function! s:get_session_files() abort
-  let l:project_dir = s:project_dir(getcwd())
+  let l:project_dir = s:project_dir(s:repo_root(getcwd()))
   if !isdirectory(l:project_dir)
     call s:warn('No Claude sessions found for this project.')
     return []
