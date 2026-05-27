@@ -50,6 +50,25 @@ function! s:open_qflist(qflist) abort
   copen
 endfunction
 
+function! s:current_qf_data() abort
+  let l:items = getqflist()
+  let l:idx = line('.') - 1
+  if l:idx < 0 || l:idx >= len(l:items)
+    return {}
+  endif
+  let l:data = get(l:items[l:idx], 'user_data', '')
+  return type(l:data) == v:t_dict ? l:data : {}
+endfunction
+
+function! s:open_in_code_window(reuse_cmd, split_cmd) abort
+  wincmd p
+  if line('$') == 1 && getline(1) ==# '' && !&modified && bufname('%') ==# ''
+    execute a:reuse_cmd
+  else
+    execute a:split_cmd
+  endif
+endfunction
+
 function! viclaude#history() abort
   let s:grep_pattern = ''
   let l:files = s:get_session_files()
@@ -193,15 +212,8 @@ function! s:extract_session_info(file) abort
 endfunction
 
 function! viclaude#select_entry() abort
-  let l:items = getqflist()
-  let l:idx = line('.') - 1
-  if l:idx < 0 || l:idx >= len(l:items)
-    call s:err('Invalid session entry.')
-    return
-  endif
-
-  let l:data = get(l:items[l:idx], 'user_data', '')
-  if type(l:data) != v:t_dict || !has_key(l:data, 'file')
+  let l:data = s:current_qf_data()
+  if !has_key(l:data, 'file')
     call s:err('Invalid session entry.')
     return
   endif
@@ -213,17 +225,9 @@ function! viclaude#select_entry() abort
     return
   endif
 
-  " Extract UUID from filename for buffer name
   let l:uuid = fnamemodify(l:file, ':t:r')
 
-  " Go to previous window (code window)
-  wincmd p
-  " Reuse the window if its buffer is empty and unmodified; otherwise split
-  if line('$') == 1 && getline(1) ==# '' && !&modified && bufname('%') ==# ''
-    enew
-  else
-    new
-  endif
+  call s:open_in_code_window('enew', 'new')
 
   " Set scratch buffer options
   setlocal buftype=nofile bufhidden=wipe noswapfile
@@ -722,9 +726,13 @@ function! s:memory_dir(cwd) abort
 endfunction
 
 function! s:by_type_name(a, b) abort
-  if a:a.type <# a:b.type | return -1 | endif
-  if a:a.type ># a:b.type | return 1 | endif
-  return a:a.name <# a:b.name ? -1 : a:a.name ># a:b.name ? 1 : 0
+  if a:a.type !=# a:b.type
+    return a:a.type <# a:b.type ? -1 : 1
+  endif
+  if a:a.name !=# a:b.name
+    return a:a.name <# a:b.name ? -1 : 1
+  endif
+  return 0
 endfunction
 
 function! s:extract_memory_info(file) abort
@@ -764,26 +772,15 @@ function! s:list_memories(memory_dir) abort
   return filter(glob(a:memory_dir . '/*.md', 0, 1), 'filereadable(v:val)')
 endfunction
 
-function! s:get_memory_files() abort
-  let l:memory_dir = s:memory_dir(s:repo_root(getcwd()))
-  if !isdirectory(l:memory_dir)
-    call s:warn('No Claude memories found for this project.')
-    return []
-  endif
-  let l:files = s:list_memories(l:memory_dir)
-  if empty(l:files)
-    call s:warn('No Claude memories found for this project.')
-  endif
-  return l:files
-endfunction
-
 function! viclaude#memory() abort
-  let l:files = s:get_memory_files()
+  let l:memory_dir = s:memory_dir(s:repo_root(getcwd()))
+  let l:files = isdirectory(l:memory_dir) ? s:list_memories(l:memory_dir) : []
   if empty(l:files)
+    call s:warn('No Claude memories found for this project.')
     return
   endif
 
-  let l:index_file = fnamemodify(l:files[0], ':h') . '/MEMORY.md'
+  let l:index_file = l:memory_dir . '/MEMORY.md'
   let l:entries = []
   for l:file in l:files
     if l:file ==# l:index_file
@@ -818,15 +815,8 @@ function! viclaude#memory() abort
 endfunction
 
 function! viclaude#select_memory() abort
-  let l:items = getqflist()
-  let l:idx = line('.') - 1
-  if l:idx < 0 || l:idx >= len(l:items)
-    call s:err('Invalid memory entry.')
-    return
-  endif
-
-  let l:data = get(l:items[l:idx], 'user_data', '')
-  if type(l:data) != v:t_dict || !has_key(l:data, 'file')
+  let l:data = s:current_qf_data()
+  if !has_key(l:data, 'file')
     call s:err('Invalid memory entry.')
     return
   endif
@@ -837,10 +827,5 @@ function! viclaude#select_memory() abort
     return
   endif
 
-  wincmd p
-  if line('$') == 1 && getline(1) ==# '' && !&modified && bufname('%') ==# ''
-    execute 'edit ' . fnameescape(l:file)
-  else
-    execute 'new ' . fnameescape(l:file)
-  endif
+  call s:open_in_code_window('edit ' . fnameescape(l:file), 'new ' . fnameescape(l:file))
 endfunction
