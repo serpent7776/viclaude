@@ -48,7 +48,6 @@ endfunction
 function! s:open_qflist(qflist) abort
   call setqflist(a:qflist)
   copen
-  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
 endfunction
 
 function! viclaude#history() abort
@@ -83,6 +82,7 @@ function! viclaude#history() abort
   endfor
 
   call s:open_qflist(l:qflist)
+  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
 endfunction
 
 function! s:extract_user_text(content) abort
@@ -590,6 +590,7 @@ function! viclaude#grep(pattern) abort
   endfor
 
   call s:open_qflist(l:qflist)
+  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
 endfunction
 
 function! s:grep_session(file, pattern) abort
@@ -714,4 +715,122 @@ function! s:extract_searchable_text(content) abort
     return join(l:texts, "\n")
   endif
   return ''
+endfunction
+
+function! s:memory_dir(cwd) abort
+  return s:project_dir(a:cwd) . '/memory'
+endfunction
+
+function! s:by_type_name(a, b) abort
+  if a:a.type <# a:b.type | return -1 | endif
+  if a:a.type ># a:b.type | return 1 | endif
+  return a:a.name <# a:b.name ? -1 : a:a.name ># a:b.name ? 1 : 0
+endfunction
+
+function! s:extract_memory_info(file) abort
+  let l:info = {
+        \ 'file': a:file,
+        \ 'name': fnamemodify(a:file, ':t:r'),
+        \ 'description': '',
+        \ 'type': '',
+        \ }
+
+  let l:lines = readfile(a:file, '', 50)
+  if empty(l:lines) || l:lines[0] !=# '---'
+    return l:info
+  endif
+
+  let l:i = 1
+  while l:i < len(l:lines) && l:lines[l:i] !=# '---'
+    let l:m = matchlist(l:lines[l:i], '^\(\w\+\):\s*\(.*\)$')
+    if !empty(l:m)
+      let l:key = l:m[1]
+      let l:val = l:m[2]
+      if l:key ==# 'name'
+        let l:info.name = l:val
+      elseif l:key ==# 'description'
+        let l:info.description = l:val
+      elseif l:key ==# 'type'
+        let l:info.type = l:val
+      endif
+    endif
+    let l:i += 1
+  endwhile
+
+  return l:info
+endfunction
+
+function! viclaude#memory() abort
+  let l:memory_dir = s:memory_dir(s:repo_root(getcwd()))
+  if !isdirectory(l:memory_dir)
+    call s:warn('No Claude memories found for this project.')
+    return
+  endif
+
+  let l:files = filter(glob(l:memory_dir . '/*.md', 0, 1), 'filereadable(v:val)')
+  if empty(l:files)
+    call s:warn('No Claude memories found for this project.')
+    return
+  endif
+
+  let l:index_file = l:memory_dir . '/MEMORY.md'
+  let l:entries = []
+  for l:file in l:files
+    if l:file ==# l:index_file
+      continue
+    endif
+    call add(l:entries, s:extract_memory_info(l:file))
+  endfor
+
+  call sort(l:entries, function('s:by_type_name'))
+
+  let l:qflist = []
+  if filereadable(l:index_file)
+    call add(l:qflist, {
+          \ 'text': '[index] MEMORY.md',
+          \ 'user_data': {'file': l:index_file},
+          \ })
+  endif
+
+  for l:e in l:entries
+    let l:label = '[' . (empty(l:e.type) ? '?' : l:e.type) . '] ' . l:e.name
+    if !empty(l:e.description)
+      let l:label = l:label . ' — ' . l:e.description
+    endif
+    call add(l:qflist, {
+          \ 'text': l:label,
+          \ 'user_data': {'file': l:e.file},
+          \ })
+  endfor
+
+  call s:open_qflist(l:qflist)
+  nnoremap <buffer> <silent> <CR> :call viclaude#select_memory()<CR>
+endfunction
+
+function! viclaude#select_memory() abort
+  let l:items = getqflist()
+  let l:idx = line('.') - 1
+  if l:idx < 0 || l:idx >= len(l:items)
+    call s:err('Invalid memory entry.')
+    return
+  endif
+
+  let l:data = get(l:items[l:idx], 'user_data', '')
+  if type(l:data) != v:t_dict || !has_key(l:data, 'file')
+    call s:err('Invalid memory entry.')
+    return
+  endif
+
+  let l:file = l:data.file
+  if !filereadable(l:file)
+    call s:err('Memory file not readable: ' . l:file)
+    return
+  endif
+
+  wincmd p
+  if line('$') == 1 && getline(1) ==# '' && !&modified && bufname('%') ==# ''
+    execute 'edit ' . fnameescape(l:file)
+  else
+    execute 'new ' . fnameescape(l:file)
+  endif
 endfunction

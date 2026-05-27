@@ -20,6 +20,14 @@ To search across all sessions for a pattern:
 
 This opens a quickfix list of matching excerpts (one per match) from user and assistant messages, sorted by most recent session. Press `<Enter>` on an entry to open the rendered conversation jumped to that match.
 
+To browse Claude Code memories saved for the current project:
+
+```vim
+:ClaudeMemory
+```
+
+This opens a quickfix list of memory entries (type, name, description) plus the `MEMORY.md` index. Press `<Enter>` on an entry to open the memory file for reading or editing.
+
 ![Preview](files/viclaude2.png)
 
 ## Install

@@ -9,3 +9,4 @@ let g:loaded_viclaude = 1
 
 command! ClaudeHistory call viclaude#history()
 command! -nargs=+ ClaudeGrep call viclaude#grep(<q-args>)
+command! ClaudeMemory call viclaude#memory()
