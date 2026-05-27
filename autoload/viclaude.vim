@@ -760,20 +760,30 @@ function! s:extract_memory_info(file) abort
   return l:info
 endfunction
 
-function! viclaude#memory() abort
+function! s:list_memories(memory_dir) abort
+  return filter(glob(a:memory_dir . '/*.md', 0, 1), 'filereadable(v:val)')
+endfunction
+
+function! s:get_memory_files() abort
   let l:memory_dir = s:memory_dir(s:repo_root(getcwd()))
   if !isdirectory(l:memory_dir)
     call s:warn('No Claude memories found for this project.')
-    return
+    return []
   endif
-
-  let l:files = filter(glob(l:memory_dir . '/*.md', 0, 1), 'filereadable(v:val)')
+  let l:files = s:list_memories(l:memory_dir)
   if empty(l:files)
     call s:warn('No Claude memories found for this project.')
+  endif
+  return l:files
+endfunction
+
+function! viclaude#memory() abort
+  let l:files = s:get_memory_files()
+  if empty(l:files)
     return
   endif
 
-  let l:index_file = l:memory_dir . '/MEMORY.md'
+  let l:index_file = fnamemodify(l:files[0], ':h') . '/MEMORY.md'
   let l:entries = []
   for l:file in l:files
     if l:file ==# l:index_file
