@@ -444,7 +444,7 @@ function! s:render_user_content(content, output, blockquote) abort
         endfor
       endif
       if !empty(l:result_text)
-        call s:emit_block(a:output, split(l:result_text, '\n'), '', 10)
+        call s:emit_block(a:output, split(l:result_text, '\n'), '', 40)
         call add(a:output, '')
       endif
     endif
