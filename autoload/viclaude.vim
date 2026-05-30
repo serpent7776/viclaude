@@ -297,6 +297,24 @@ function! s:thinking_foldtext() abort
   return '~ [Thinking] (' . l:count . ' lines) '
 endfunction
 
+" Sub-agent (Agent tool) results carry agentType in the entry's toolUseResult.
+" Record them as 'Agent' so they render as markdown even when the assistant
+" tool_use line that issued the call was unparseable and never seeded tool_names.
+function! s:note_agent_results(obj, content, tool_names) abort
+  let l:meta = get(a:obj, 'toolUseResult', {})
+  if type(l:meta) != v:t_dict || !has_key(l:meta, 'agentType')
+    return
+  endif
+  if type(a:content) != v:t_list
+    return
+  endif
+  for l:block in a:content
+    if type(l:block) == v:t_dict && get(l:block, 'type', '') ==# 'tool_result'
+      let a:tool_names[get(l:block, 'tool_use_id', '')] = 'Agent'
+    endif
+  endfor
+endfunction
+
 function! s:render_session(file) abort
   let l:lines = readfile(a:file)
   let l:output = []
@@ -357,6 +375,7 @@ function! s:render_session(file) abort
         endif
         call add(l:output, '')
       endif
+      call s:note_agent_results(l:obj, l:content, l:tool_names)
       call s:render_user_content(l:content, l:output, l:has_text, l:tool_names)
       if l:has_text && !l:is_noise
         call add(l:output, '')
