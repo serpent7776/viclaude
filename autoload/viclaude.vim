@@ -28,8 +28,12 @@ function! s:repo_root(cwd) abort
   return a:cwd
 endfunction
 
+function! s:list_files(dir, pattern) abort
+  return filter(glob(a:dir . '/' . a:pattern, 0, 1), 'filereadable(v:val)')
+endfunction
+
 function! s:list_sessions(project_dir) abort
-  return filter(glob(a:project_dir . '/*.jsonl', 0, 1), 'filereadable(v:val)')
+  return s:list_files(a:project_dir, '*.jsonl')
 endfunction
 
 function! s:get_session_files() abort
@@ -45,9 +49,10 @@ function! s:get_session_files() abort
   return l:files
 endfunction
 
-function! s:open_qflist(qflist) abort
+function! s:open_qflist(qflist, select_fn) abort
   call setqflist(a:qflist)
   copen
+  execute 'nnoremap <buffer> <silent> <CR> :call ' . a:select_fn . '()<CR>'
 endfunction
 
 function! s:current_qf_data() abort
@@ -60,12 +65,15 @@ function! s:current_qf_data() abort
   return type(l:data) == v:t_dict ? l:data : {}
 endfunction
 
-function! s:open_in_code_window(reuse_cmd, split_cmd) abort
+" Open in the code window: reuse it if empty/unmodified, else split.
+" An empty a:file means a fresh scratch buffer.
+function! s:open_in_code_window(file) abort
   wincmd p
-  if line('$') == 1 && getline(1) ==# '' && !&modified && bufname('%') ==# ''
-    execute a:reuse_cmd
+  let l:reuse = line('$') == 1 && getline(1) ==# '' && !&modified && bufname('%') ==# ''
+  if empty(a:file)
+    execute l:reuse ? 'enew' : 'new'
   else
-    execute a:split_cmd
+    execute (l:reuse ? 'edit ' : 'new ') . fnameescape(a:file)
   endif
 endfunction
 
@@ -100,8 +108,7 @@ function! viclaude#history() abort
           \ })
   endfor
 
-  call s:open_qflist(l:qflist)
-  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
+  call s:open_qflist(l:qflist, 'viclaude#select_entry')
 endfunction
 
 function! s:extract_user_text(content) abort
@@ -227,7 +234,7 @@ function! viclaude#select_entry() abort
 
   let l:uuid = fnamemodify(l:file, ':t:r')
 
-  call s:open_in_code_window('enew', 'new')
+  call s:open_in_code_window('')
 
   " Set scratch buffer options
   setlocal buftype=nofile bufhidden=wipe noswapfile
@@ -593,8 +600,7 @@ function! viclaude#grep(pattern) abort
     endfor
   endfor
 
-  call s:open_qflist(l:qflist)
-  nnoremap <buffer> <silent> <CR> :call viclaude#select_entry()<CR>
+  call s:open_qflist(l:qflist, 'viclaude#select_entry')
 endfunction
 
 function! s:grep_session(file, pattern) abort
@@ -726,13 +732,9 @@ function! s:memory_dir(cwd) abort
 endfunction
 
 function! s:by_type_name(a, b) abort
-  if a:a.type !=# a:b.type
-    return a:a.type <# a:b.type ? -1 : 1
-  endif
-  if a:a.name !=# a:b.name
-    return a:a.name <# a:b.name ? -1 : 1
-  endif
-  return 0
+  let l:x = a:a.type . "\n" . a:a.name
+  let l:y = a:b.type . "\n" . a:b.name
+  return l:x <# l:y ? -1 : l:x ># l:y ? 1 : 0
 endfunction
 
 function! s:extract_memory_info(file) abort
@@ -769,12 +771,12 @@ function! s:extract_memory_info(file) abort
 endfunction
 
 function! s:list_memories(memory_dir) abort
-  return filter(glob(a:memory_dir . '/*.md', 0, 1), 'filereadable(v:val)')
+  return s:list_files(a:memory_dir, '*.md')
 endfunction
 
 function! viclaude#memory() abort
   let l:memory_dir = s:memory_dir(s:repo_root(getcwd()))
-  let l:files = isdirectory(l:memory_dir) ? s:list_memories(l:memory_dir) : []
+  let l:files = s:list_memories(l:memory_dir)
   if empty(l:files)
     call s:warn('No Claude memories found for this project.')
     return
@@ -810,8 +812,7 @@ function! viclaude#memory() abort
           \ })
   endfor
 
-  call s:open_qflist(l:qflist)
-  nnoremap <buffer> <silent> <CR> :call viclaude#select_memory()<CR>
+  call s:open_qflist(l:qflist, 'viclaude#select_memory')
 endfunction
 
 function! viclaude#select_memory() abort
@@ -827,5 +828,5 @@ function! viclaude#select_memory() abort
     return
   endif
 
-  call s:open_in_code_window('edit ' . fnameescape(l:file), 'new ' . fnameescape(l:file))
+  call s:open_in_code_window(l:file)
 endfunction
