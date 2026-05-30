@@ -301,6 +301,7 @@ function! s:render_session(file) abort
   let l:lines = readfile(a:file)
   let l:output = []
   let l:last_assistant_id = ''
+  let l:tool_names = {}
 
   for l:raw in l:lines
     try
@@ -356,7 +357,7 @@ function! s:render_session(file) abort
         endif
         call add(l:output, '')
       endif
-      call s:render_user_content(l:content, l:output, l:has_text)
+      call s:render_user_content(l:content, l:output, l:has_text, l:tool_names)
       if l:has_text && !l:is_noise
         call add(l:output, '')
         let l:last_assistant_id = ''
@@ -368,7 +369,7 @@ function! s:render_session(file) abort
       if l:new_turn
         let l:last_assistant_id = l:msg_id
       endif
-      call s:render_assistant_content(l:content, l:output)
+      call s:render_assistant_content(l:content, l:output, l:tool_names)
     endif
   endfor
 
@@ -388,7 +389,7 @@ function! s:emit_block(output, lines, fence, threshold) abort
   endif
 endfunction
 
-function! s:render_user_content(content, output, blockquote) abort
+function! s:render_user_content(content, output, blockquote, tool_names) abort
   if type(a:content) == v:t_string
     if a:blockquote
       let l:clean = s:clean_user_text(a:content)
@@ -451,14 +452,20 @@ function! s:render_user_content(content, output, blockquote) abort
         endfor
       endif
       if !empty(l:result_text)
-        call s:emit_block(a:output, split(l:result_text, '\n'), '', 40)
+        let l:tool = get(a:tool_names, get(l:block, 'tool_use_id', ''), '')
+        if l:tool ==# 'Agent'
+          " Agent results are markdown prose; render unfenced so headers etc. highlight.
+          call extend(a:output, split(l:result_text, '\n'))
+        else
+          call s:emit_block(a:output, split(l:result_text, '\n'), '', 40)
+        endif
         call add(a:output, '')
       endif
     endif
   endfor
 endfunction
 
-function! s:render_assistant_content(content, output) abort
+function! s:render_assistant_content(content, output, tool_names) abort
   if type(a:content) != v:t_list
     return
   endif
@@ -486,6 +493,7 @@ function! s:render_assistant_content(content, output) abort
     elseif l:btype ==# 'tool_use'
       let l:name = get(l:block, 'name', '?')
       let l:input = get(l:block, 'input', {})
+      let a:tool_names[get(l:block, 'id', '')] = l:name
       if l:name ==# 'Bash'
         let l:cmd = get(l:input, 'command', '')
         call add(a:output, '`[Tool: Bash]`')
