@@ -483,14 +483,14 @@ function! s:render_assistant_content(content, output) abort
         let l:cmd = get(l:input, 'command', '')
         call add(a:output, '`[Tool: Bash]`')
         if !empty(l:cmd)
-          call s:emit_block(a:output, split(l:cmd, '\n'), 'bash', 10)
+          call s:emit_block(a:output, split(l:cmd, '\n'), 'bash', 0)
         endif
       elseif l:name ==# 'Write'
         let l:path = get(l:input, 'file_path', '')
         let l:wcontent = get(l:input, 'content', '')
         call add(a:output, '`[Tool: Write]` `' . l:path . '`')
         if !empty(l:wcontent)
-          call s:emit_block(a:output, split(l:wcontent, '\n'), '', 10)
+          call s:emit_block(a:output, split(l:wcontent, '\n'), '', 0)
         endif
       elseif l:name ==# 'Edit'
         let l:path = get(l:input, 'file_path', '')
@@ -505,7 +505,7 @@ function! s:render_assistant_content(content, output) abort
           for l:dl in split(l:new, '\n')
             call add(l:diff_lines, '+ ' . l:dl)
           endfor
-          call s:emit_block(a:output, l:diff_lines, 'diff', 10)
+          call s:emit_block(a:output, l:diff_lines, 'diff', 0)
         endif
       else
         let l:context = s:tool_context(l:name, l:input)
